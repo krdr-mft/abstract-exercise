@@ -20,7 +20,9 @@ docker-compose run phpunit --verbose tests
 ```
 
 ## Napomena
+
 Napravio sam koncepcijsku grešku. Naime, trebalo je kreirati odgovarajuće klase i inicijalizovali odgovarajući objekti, a u kojima bi se nalazila pravila za prava pristupa.
+
 ---
 U slučaju da dođe do kolizije sa portovima, promeniti portove u docker-compose.yaml, i to za _web_ i _mysql_. Npr, za web servis:
 
