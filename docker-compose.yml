@@ -1,0 +1,62 @@
+version: '3'
+services:
+    composer:
+        image: composer:latest
+        environment:
+          - COMPOSER_CACHE_DIR=/app/var/cache/composer
+        volumes:
+          - ./app:/app
+        restart: "no"
+        networks:
+            - dev-env
+
+    php:
+        build:
+            context: .
+            dockerfile: PHP.Dockerfile
+        volumes:
+            - ./app:/app
+        depends_on:
+            - mysql
+        networks:
+            - dev-env
+
+    web:
+        image: nginx:latest
+        ports:
+            - "81:80"
+        volumes:
+            - ./nginx.conf:/etc/nginx/conf.d/nginx.conf
+            - ./app:/app
+        links:
+            - 'php'
+        depends_on:
+            - php
+        networks:
+            - dev-env
+
+    mysql:
+        image: mariadb:latest
+        environment:
+            MYSQL_ROOT_PASSWORD: 'root_pass'
+            MYSQL_USER: 'test_user'
+            MYSQL_PASSWORD: 'user_pass'
+            MYSQL_DATABASE: 'test_db'
+        volumes:
+            - mysqldata:/var/lib/mysql
+        ports:
+            - 3307:3306
+        networks:
+            - dev-env
+    phpunit:
+        image: php:fpm
+        restart: 'no'
+        volumes:
+          - ./app:/app
+        working_dir: /app
+        entrypoint: vendor/bin/phpunit
+
+volumes:
+    mysqldata: {}
+networks:
+  dev-env: {}
