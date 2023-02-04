@@ -2,25 +2,31 @@
 namespace Abstract;
 
 use PHPUnit\Framework\TestCase;
+use Abstract\Util\FileGetContentsWrapper;
 
 class ParserTest extends TestCase
 {
-    /**
-     * @covers Parser
-     */
-    public function testParserConstructorNoFile()
-    {
-        $this->expectException(\Exception::class);
-        $parser = new Parser([]);
-    }
+    private FileGetContentsWrapper $fileGetContentsWrapper;
 
-    /**
-     * @covers Parser
-     */
-    public function testParserConstructorWrongFile()
+    protected function setUp():void
     {
-        $this->expectException(\Exception::class);
-        $parser = new Parser(['/test']);
+        $this->fileGetContentsWrapper = $this->createMock( FileGetContentsWrapper::class );
+
+        $this->fileGetContentsWrapper->method('fileGetContents')->will(
+            $this->returnCallback(
+                function($arg)
+                {
+                    if($arg == 'workflow1.json')
+                       return $this->mockJson1();
+                    elseif($arg == 'workflow2.json')
+                       return $this->mockJson2();
+                    else
+                        throw new \Exception("File not found");
+                }
+            )
+        );
+
+        parent::setUp();
     }
 
     /**
@@ -28,12 +34,14 @@ class ParserTest extends TestCase
      */
     public function testParserConstructor()
     {
-        $parser = new Parser(['mocks/workflow1.json']);
+        $parser = $this->getSot();
+
+        $parser->loadPaths(['workflow1.json']);
         $workflows = $parser->getWorkflows();
 
         $this->assertCount(1, $workflows);
     
-        $wowrkflow = $workflows[0];
+        $workflow = array_shift($workflows);
 
         $this->assertObjectHasAttribute('WorkflowID', $workflow);
         $this->assertObjectHasAttribute('WorkflowName', $workflow);
@@ -41,7 +49,7 @@ class ParserTest extends TestCase
         $this->assertObjectHasAttribute('Params', $workflow);
         $this->assertObjectHasAttribute('Rules', $workflow);
 
-        $mockObject = $this->mockJson1();
+        $mockObject = json_decode($this->mockJson1());
 
         $this->assertSame($workflow->WorkflowID, $mockObject->WorkflowID);
         $this->assertSame($workflow->WorkflowName, $mockObject->WorkflowName);
@@ -63,13 +71,32 @@ class ParserTest extends TestCase
     /**
      * @covers Parser
      */
-    public function testParserConstructorMultiple()
+    public function testLoadPathsMultiple()
     {
         //$this->expectException(\Exception::class);
-        $parser = new Parser(['mocks/workflow1.json','mocks/workflow2.json']);
+        $parser = $this->getSot();
+
+        $parser->loadPaths(['workflow1.json', 'workflow2.json']);
         $workflows = $parser->getWorkflows();
 
         $this->assertCount(2, $workflows);
+        $this->assertNotCount(1, $workflows);
+    }
+
+    /**
+     * @covers Parser
+     */
+    public function testLoadPathsEmpty()
+    {
+        $parser = $this->getSot();
+
+        $this->expectException(\Exception::class);
+
+        $parser->loadPaths([]);
+        $workflows = $parser->getWorkflows();
+
+        $this->assertCount(2, $workflows);
+        $this->assertNotCount(1, $workflows);
     }
 
     /**
@@ -80,15 +107,139 @@ class ParserTest extends TestCase
         $user = new User(User::ROLE_ADMIN);
         $request = new Request('/user/test/user','100.100.100.100');
 
-        $parser = new Parser(['mocks/workflow1.json']);
-        $result = $parser->validate();
+        $parser = $this->getSot();
+
+        $parser->loadPaths(['workflow1.json']);
+        $result = $parser->validate($request, $user);
 
         $this->assertFalse($result);
     }
 
+    /**
+     * @covers Parser
+     */
+    public function testWorkflowValidationFailOnIp()
+    {
+        $user = new User(User::ROLE_ADMIN);
+        $request = new Request('/admin/test/user','100.100.100.10');
+
+        $parser = $this->getSot();
+
+        $parser->loadPaths(['workflow1.json']);
+        $result = $parser->validate($request, $user);
+
+        $this->assertFalse($result);
+    }
+
+    /**
+     * @covers Parser
+     */
+    public function testWorkflowValidationFailOnRole()
+    {
+        $user = new User('test');
+        $request = new Request('/admin/test/user','100.100.100.10');
+
+        $parser = $this->getSot();
+
+        $parser->loadPaths(['workflow1.json']);
+        $result = $parser->validate($request, $user);
+
+        $this->assertFalse($result);
+    }
+
+    /**
+     * @covers Parser
+     */
+    public function testWorkflowValidationPositive()
+    {
+        $user = new User(User::ROLE_ADMIN);
+        $request = new Request('/admin/test/user','100.100.100.100');
+
+        $parser = $this->getSot();
+
+        $parser->loadPaths(['workflow1.json']);
+        $result = $parser->validate($request, $user);
+
+        $this->assertTrue($result);
+    }
+
+    /**
+     * @covers Parser
+     */
+    public function testWorkflow2ValidationFailOnPath()
+    {
+        $user = new User(User::ROLE_ADMIN);
+        $request = new Request('/user/test/user','100.100.100.10');
+
+        $parser = $this->getSot();
+
+        $parser->loadPaths(['workflow2.json']);
+        $result = $parser->validate($request, $user);
+
+        $this->assertFalse($result);
+    }
+
+    /**
+     * @covers Parser
+     */
+    public function testWorkflow2ValidationFailOnIp()
+    {
+        $user = new User(User::ROLE_ADMIN);
+        $request = new Request('/admin/test/user','100.100.100.50');
+
+        $parser = $this->getSot();
+
+        $parser->loadPaths(['workflow2.json']);
+        $result = $parser->validate($request, $user);
+
+        $this->assertFalse($result);
+    }
+
+    /**
+     * @covers Parser
+     */
+    public function testWorkflow2ValidationFailOnRole()
+    {
+        $user = new User('test');
+        $request = new Request('/admin/test/user','100.100.100.10');
+
+        $parser = $this->getSot();
+
+        $parser->loadPaths(['workflow2.json']);
+        $result = $parser->validate($request, $user);
+
+        $this->assertFalse($result);
+    }
+
+    /**
+     * @covers Parser
+     */
+    public function testWorkflow2ValidationPositive()
+    {
+        $user = new User(User::ROLE_ADMIN);
+        $request = new Request('/admin/test/user','100.100.100.1');
+
+        $parser = $this->getSot();
+
+        $parser->loadPaths(['workflow2.json']);
+        $result = $parser->validate($request, $user);
+
+        $this->assertTrue($result);
+
+        $user = new User(User::ROLE_SUPERADMIN);
+        $result = $parser->validate($request, $user);
+    }
+
+
+
+    private function getSot()
+    {
+        return new Parser($this->fileGetContentsWrapper);
+    }
+
     private function mockJson1()
     {
-        $json = <<<JSON
+        $json = <<<'JSON'
             {
                 "WorkflowID": 1,
                 "WorkflowName": "Allow only specific IP for ADMIN role",
@@ -114,8 +265,40 @@ class ParserTest extends TestCase
             }
         JSON;
 
-        return json_decode($json);
+        return $json;
     }
+
+    private function mockJson2()
+    {
+        $json = <<<'JSON'
+        {
+            "WorkflowID": 2,
+            "WorkflowName": "Allow only specific IPs for ADMIN and SUPER_ADMIN roles",
+            "Path": "/admin/*",
+            "Params": [{
+                    "Name": "ip_address",
+                    "Expression": "$request.getIpAddress"
+            	},
+            	{
+                    "Name": "user_role",
+                    "Expression": "$user.getRole"
+                }
+            ],
+            "Rules": [{
+                    "RuleName": "Allow only specific IP",
+                    "Expression": "ip_range($ip_address, '100.100.100.1/28')"
+            	},
+            	{
+                    "RuleName": "Check role",
+                    "Expression": "in($user_role, 'ADMIN', 'SUPER_ADMIN')"
+                }
+            ]
+        }
+        JSON;
+
+        return $json;
+    }
+
 
 
 

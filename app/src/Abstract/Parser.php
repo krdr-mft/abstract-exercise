@@ -4,6 +4,7 @@ namespace Abstract;
 
 use Abstract\Request;
 use Abstract\User;
+use Abstract\Util\FileGetContentsWrapper;
 use Exception;
 
 class Parser
@@ -15,9 +16,9 @@ class Parser
 
     private $methodsAvailable = [self::METHOD_IN, self::METHOD_IP_RANGE];
 
-    public function __construct(private array $paths = [])
+    public function __construct(private FileGetContentsWrapper $fileGetContentsWrapper)
     {
-        $this->loadPaths($this->paths);
+
     }
 
     public function loadPaths( array $paths)
@@ -35,12 +36,7 @@ class Parser
 
     public function load(String $path)
     {
-        if(!file_exists($path))
-        {
-            throw new Exception(sprintf('Couldnt read file %s', $path) );
-        }
-
-        $file = file_get_contents($path);
+        $file = $this->fileGetContentsWrapper->fileGetContents($path);
 
         $workflow = json_decode($file, false);
 
@@ -49,7 +45,7 @@ class Parser
 
     public function getWorkflows()
     {
-        return $workflows;
+        return $this->workflows;
     }
 
     public function validate(Request $request, User $user, $workflowID = null)

@@ -4,6 +4,8 @@
 use Abstract\Parser;
 use Abstract\User;
 use Abstract\Request;
+use Abstract\Util\FileGetContentsWrapper;
+
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
@@ -35,8 +37,11 @@ function test($role, $path, $ip, $title, $paths)
 
   $user = new User($role);
   $request = new Request($path,$ip);
+
+  $fileGetContentsWrapper = new FileGetContentsWrapper();
   
-  $parser = new Parser($paths);
+  $parser = new Parser($fileGetContentsWrapper);
+  $parser->loadPaths($paths);
   $result = $parser->validate($request, $user);
   
   echo "Result:  ".print_r($result,true)."<br>";
