@@ -72,7 +72,7 @@ class Parser
 
         foreach($workflows as $flow)
         {
-            $result =  $result || $this->validateWorkflow($request, $user, $flow) || $flow;
+            $result =  $result || $this->validateWorkflow($request, $user, $flow);
         }
 
         return $result;
@@ -96,11 +96,11 @@ class Parser
             $output[$param->Name] = $this->resolve($request, $user, $parts);
         }
 
-        $ruleResult = false;
+        $ruleResult = true;
 
         foreach ($flow->Rules as $rule)
         {
-            $ruleResult = $ruleResult || $this->evalExpression($rule->Expression,$output);
+            $ruleResult = $ruleResult && $this->evalExpression($rule->Expression,$output);
         }
 
         return $ruleResult ;
