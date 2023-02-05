@@ -2,6 +2,11 @@
 
 namespace Abstract\Util;
 
+/**
+ * FileGetContentsWrapper klasu
+ * 
+ * @package Abstract
+ */
 class FileGetContentsWrapper
 {
     public function fileGetContents( string $filename )
